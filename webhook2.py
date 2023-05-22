@@ -11,7 +11,7 @@ client = vonage.Client(key='xxxxx', secret='xxxxx')
 app = Flask(__name__)
 
 
-@app.route('/', methods=['POST'])
+@app.route('/inbound', methods=['POST'])
 def webhook():
     if request.method == 'POST':
         print(request.json)
