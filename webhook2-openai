@@ -1,0 +1,143 @@
+#!/usr/bin/python3
+import datetime
+from flask import Flask, request, abort
+from gevent.pywsgi import WSGIServer
+import json
+import vonage
+import requests
+import openai
+openai.api_key = 'sk-xxxxxxxxxxxxxxxxxxxx'
+
+client = vonage.Client(key='xxxxx', secret='xxxxxxx')
+
+app = Flask(__name__)
+
+
+@app.route('/inbound', methods=['POST'])
+def webhook():
+    if request.method == 'POST':
+        print(request.json)
+        json_str = json.dumps(request.json)
+        resp = json.loads(json_str)
+        # print(resp)
+        json_from = resp['from']
+        json_to = resp['to']
+        json_text = resp['text']
+        if 'message_type' in resp:
+            message_type = resp['message_type']
+            if message_type == 'text':
+                print('This is a text')
+                if json_to == '14157386102':
+                    print('This is a sandbox number')
+
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    }
+                    json_data = {
+                        'from': '14157386102',
+                        'to': resp['from'],
+                        'message_type': 'text',
+                        'text': 'Hi ' + resp['from'] + ' ,how are you? this is sandbox number',
+                        'channel': 'whatsapp',
+                    }
+                    response = requests.post(
+                        'https://messages-sandbox.nexmo.com/v1/messages',
+                        headers=headers,
+                        json=json_data,
+                        auth=('xxxxx', 'xxxxxxx'),
+                    )
+                else:
+                    if json_to == '6017xxxxxxx':
+                        print('This is a production number')
+                        print(resp['text'])
+
+
+                    def openAIQuery(query):
+                        #response = openai.Completion.create(
+                        response = openai.Completion.create(
+                           #engine="davinci-instruct-beta-v3",
+                           engine="davinci",
+                           prompt=query,
+                           temperature=0.8,
+                           max_tokens=200,
+                           top_p=1,
+                           frequency_penalty=0,
+                           presence_penalty=0)
+                     
+                        if 'choices' in response:
+                             if len(response['choices']) > 0:
+                                 answer = response['choices'][0]['text']
+                             else:
+                                 answer = 'Opps sorry, you beat the AI this time'
+                        else:
+                             answer = 'Opps sorry, you beat the AI this time'
+                     
+                        return answer
+                     
+                     
+                    if __name__ == '__main__':
+                        if not openai.api_key:
+                             print(f'api_key is not set')
+                             exit(0)
+                     
+                        query = resp['text']
+                        try:
+                             response = openAIQuery(query)
+                             response = json.dumps(response,indent=1)
+                             response = response.replace("\\n", "")
+                             response = response.replace("\{", "")
+                             response = response.replace('\{"', "")
+                             response = response.replace('\}"', "")
+                             response = response.replace("\}", "")
+                             response = response.encode().decode('unicode_escape')
+                             print(f'Response : {response}')
+                        except Exception as e:
+                             print(f'Exception : {str(e)}')
+
+                        headers = {
+                             'Authorization': 'Bearer xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  #https://developer.vonage.com/en/jwt
+                             'Content-Type': 'application/json',
+                             'Accept': 'application/json',
+                        }
+
+                        json_data = {
+                             'message_type': 'text',
+                             'text': response,
+                             'to': resp['from'],
+                             'from': '6017xxxxxxx',
+                             'channel': 'whatsapp',
+                        }
+
+                        response = requests.post(
+                             'https://api.nexmo.com/v1/messages', headers=headers, json=json_data)
+
+                             # Note: json_data will not be serialized by requests
+                             # exactly as it was in the original request.
+                             # data = '{\n"message_type": "text",\n"text": "i do not know, what say you?",\n"to": "601120000038",\n"from": "6017xxxxxxx",\n"channel":  "whatsapp"\n   }'
+                             # response = requests.post('https://api.nexmo.com/v1/messages', headers=headers, data=data)
+
+            else:
+                print('This is not a text')
+            return 'success', 200
+            # content = request.json()
+            # target_to = content['to']
+            # target_from = content['from']
+            # print(target_from, target_to)
+    else:
+        abort(400)
+
+
+@app.route('/status', methods=['POST'])
+def webhook2():
+    if request.method == 'POST':
+        json_str = json.dumps(request.json)
+        resp = json.loads(json_str)
+        print(resp)
+    return 'success', 200
+
+
+if __name__ == '__main__':
+    # app.run(host='0.0.0.0', port=8090)
+    http_server = WSGIServer(('', 8090), app)
+    http_server.serve_forever()
