@@ -142,7 +142,7 @@ def webhook():
                              # exactly as it was in the original request.
                              # data = '{\n"message_type": "text",\n"text": "i do not know, what say you?",\n"to": "601120000038",\n"from": "6017xxxxxxx",\n"channel":  "whatsapp"\n   }'
                              # response = requests.post('https://api.nexmo.com/v1/messages', headers=headers, data=data)
-
+                        return 'success', 200
             else:
                 print('This is not a text')
             return 'success', 200
