@@ -108,15 +108,18 @@ def webhook():
                      
                         query = resp['text']
                         try:
+
                              response = openAIQuery(query)
                              response = json.dumps(response,indent=1)
-                             response = response.replace("\\n", "")
                              response = response.replace("\{", "")
                              response = response.replace('\{"', "")
                              response = response.replace('\}"', "")
                              response = response.replace("\}", "")
                              response = response.replace('\"', "")
+                             response = response.encode('utf-8', 'surrogateescape')
+                             response = response.decode('utf-8')
                              response = response.encode().decode('unicode_escape')
+
                              print(f'Response : {response}')
                         except Exception as e:
                              print(f'Exception : {str(e)}')
