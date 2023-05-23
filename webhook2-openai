@@ -157,9 +157,8 @@ def webhook():
         # Invalid signature, handle accordingly
         return 'Invalid JWT', 401
 
-     return 'success', 200
-     print('return success 200 ok')
-
+    return 'success', 200
+    
 def verify_jwt(jwt_token, payload):
     try:
         jwt.decode(jwt_token, SIGNATURE_SECRET, algorithms=['HS256'])
