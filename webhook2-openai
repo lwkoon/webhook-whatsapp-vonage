@@ -6,16 +6,38 @@ import json
 import vonage
 import requests
 import openai
-openai.api_key = 'sk-xxxxxxxxxxxxxxxxxxxx'
+openai.api_key = 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+import jwt
+#openai.api_base = "/v1/chat/completions"
+#openai.api_version = "2023-05-15"
 
-client = vonage.Client(key='xxxxx', secret='xxxxxxx')
+client = vonage.Client(key='xxxxxxxx', secret='xxxxxxxx')
 
 app = Flask(__name__)
 
+SIGNATURE_SECRET = 'vonage-secretkeyxxxxxxxx'
 
 @app.route('/inbound', methods=['POST'])
 def webhook():
     if request.method == 'POST':
+     print(request.headers)
+     auth_header = request.headers.get('Authorization')
+     payload = request.data
+
+     if not auth_header or not auth_header.startswith('Bearer '):
+        # Invalid request, missing or invalid Authorization header
+        return 'Invalid request', 400
+
+     jwt_token = auth_header.split(' ')[1]
+
+     # Validate the jwt
+     is_valid = verify_jwt(jwt_token, payload)
+
+     if is_valid:
+        # The request is validated, proceed with further processing
+        # ...
+        print('Vonage JWT key validation ok')
+        #return 'OK'
         print(request.json)
         json_str = json.dumps(request.json)
         resp = json.loads(json_str)
@@ -45,7 +67,7 @@ def webhook():
                         'https://messages-sandbox.nexmo.com/v1/messages',
                         headers=headers,
                         json=json_data,
-                        auth=('xxxxx', 'xxxxxxx'),
+                        auth=('xxxxxxxx', 'xxxxxxxx'),
                     )
                 else:
                     if json_to == '6017xxxxxxx':
@@ -54,14 +76,17 @@ def webhook():
 
 
                     def openAIQuery(query):
-                        #response = openai.Completion.create(
                         response = openai.Completion.create(
+                        #response = openai.ChatCompletion.create(
+                        #response = openai.Completion.create(
                            #engine="davinci-instruct-beta-v3",
-                           engine="davinci",
+                           engine="text-davinci-003",
                            prompt=query,
-                           temperature=0.8,
+                           temperature=0.5,
                            max_tokens=200,
                            top_p=1,
+                           stop=None,
+                           n=1,
                            frequency_penalty=0,
                            presence_penalty=0)
                      
@@ -90,13 +115,14 @@ def webhook():
                              response = response.replace('\{"', "")
                              response = response.replace('\}"', "")
                              response = response.replace("\}", "")
+                             response = response.replace('\"', "")
                              response = response.encode().decode('unicode_escape')
                              print(f'Response : {response}')
                         except Exception as e:
                              print(f'Exception : {str(e)}')
 
                         headers = {
-                             'Authorization': 'Bearer xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  #https://developer.vonage.com/en/jwt
+                             'Authorization': 'Bearer JWTgenerater-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', #https://developer.vonage.com/en/jwt
                              'Content-Type': 'application/json',
                              'Accept': 'application/json',
                         }
@@ -124,9 +150,19 @@ def webhook():
             # target_to = content['to']
             # target_from = content['from']
             # print(target_from, target_to)
-    else:
-        abort(400)
+     else:
+        # Invalid signature, handle accordingly
+        return 'Invalid JWT', 401
 
+def verify_jwt(jwt_token, payload):
+    try:
+        jwt.decode(jwt_token, SIGNATURE_SECRET, algorithms=['HS256'])
+        return True
+    except jwt.exceptions.InvalidTokenError:
+        return False
+   
+    #else:
+    #    abort(400)
 
 @app.route('/status', methods=['POST'])
 def webhook2():
